@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>GHOST GRID</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--bg:#000;--green:#39ff14;--cyan:#00e5cc;--ghost:#a8c4d8;--red:#ff4455;--yellow:#ffe066;}
+html,body{width:100%;height:100%;background:#000;overflow:hidden;}
+body{color:var(--green);font-family:'Share Tech Mono','Courier New',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:998;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,0.70) 100%);}
+canvas{display:block;image-rendering:pixelated;border:2px solid #1a3a1a;box-shadow:0 0 10px rgba(57,255,20,0.12);}
+
+/* ── Overlay ── */
+#ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:500;pointer-events:none;}
+.scr{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:all;padding:20px;}
+.scr.off{display:none!important;}
+
+/* ── Typography ── */
+.ttl{font-size:clamp(28px,7vw,52px);color:var(--green);letter-spacing:10px;text-shadow:0 0 16px var(--green);margin-bottom:6px;line-height:1.1;}
+.sub{font-size:clamp(9px,2vw,12px);color:var(--cyan);letter-spacing:4px;margin-bottom:24px;text-shadow:0 0 8px var(--cyan);}
+.pr{font-size:clamp(10px,2vw,13px);letter-spacing:3px;line-height:2.2;margin:3px 0;}
+.pr-g{color:var(--green);text-shadow:0 0 6px var(--green);}
+.pr-c{color:var(--cyan);text-shadow:0 0 6px var(--cyan);}
+.pr-d{color:#445;}
+.blink{animation:blink 1s step-end infinite;}
+@keyframes blink{50%{opacity:0;}}
+
+/* ── Ghost Toggle ── */
+.ghost-row{display:flex;align-items:center;gap:14px;border:1px solid #1a3a1a;padding:10px 20px;margin:12px 0 18px;cursor:pointer;transition:border-color .15s;user-select:none;position:relative;z-index:10;}
+.ghost-row:hover{border-color:#2a5a2a;}
+.ghost-lbl{font-size:10px;letter-spacing:3px;color:#445;}
+.tog-wrap{width:44px;height:22px;border:1px solid #2a4a2a;position:relative;background:#000;transition:background .15s;flex-shrink:0;}
+.tog-wrap.on{background:rgba(57,255,20,0.1);border-color:var(--green);}
+.tog-knob{position:absolute;top:3px;left:3px;width:14px;height:14px;background:#2a4a2a;transition:all .15s;}
+.tog-wrap.on .tog-knob{left:25px;background:var(--green);box-shadow:0 0 6px var(--green);}
+.tog-val{font-size:10px;letter-spacing:2px;color:#334;min-width:24px;}
+.tog-wrap.on~.tog-val{color:var(--green);text-shadow:0 0 4px var(--green);}
+
+/* ── Score cells ── */
+.srow{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:10px 0 14px;}
+.scell{text-align:center;min-width:72px;}
+.slbl{font-size:8px;color:#445;letter-spacing:2px;margin-bottom:3px;}
+.snum{font-size:18px;letter-spacing:2px;}
+.c-g{color:var(--green);text-shadow:0 0 6px var(--green);}
+.c-y{color:var(--yellow);text-shadow:0 0 6px var(--yellow);}
+.c-r{color:var(--red);text-shadow:0 0 6px var(--red);}
+.c-gh{color:var(--ghost);text-shadow:0 0 6px var(--ghost);}
+
+/* ── Commander panel ── */
+#cmd-panel{position:fixed;bottom:80px;right:10px;border:1px solid #1a3a1a;background:rgba(0,0,0,0.92);padding:7px 13px;font-size:10px;color:var(--cyan);letter-spacing:1px;line-height:1.7;z-index:600;max-width:210px;text-shadow:0 0 5px var(--cyan);pointer-events:none;transition:opacity .3s;opacity:0;display:block;}
+#cmd-panel.show{opacity:1;}
+#cmd-name{font-size:7px;color:#336;letter-spacing:3px;margin-bottom:3px;}
+
+/* ── Alerts / banners ── */
+#sb-alert{position:fixed;top:0;left:0;right:0;border-bottom:2px solid var(--red);background:rgba(0,0,0,0.97);color:var(--red);font-size:11px;letter-spacing:4px;padding:11px;z-index:900;pointer-events:none;text-shadow:0 0 12px var(--red);animation:sbp .35s ease infinite alternate;white-space:nowrap;text-align:center;display:none;}
+#sb-alert.show{display:block;}
+@keyframes sbp{from{box-shadow:0 0 4px rgba(255,44,55,.3);}to{box-shadow:0 0 20px rgba(255,44,55,.9);}}
+
+#cmd-adapt{position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.96);border:1px solid var(--cyan);color:var(--cyan);font-size:12px;letter-spacing:3px;padding:11px 26px;z-index:800;pointer-events:none;text-align:center;text-shadow:0 0 10px var(--cyan);white-space:nowrap;display:none;}
+#cmd-adapt.show{display:block;}
+#cmd-adapt-sub{font-size:8px;color:#1a5a5a;letter-spacing:3px;margin-top:5px;}
+
+#ghost-enter{position:fixed;top:38%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.96);border:1px solid var(--ghost);color:var(--ghost);font-size:clamp(11px,3vw,15px);letter-spacing:5px;padding:13px 28px;z-index:800;pointer-events:none;text-align:center;text-shadow:0 0 12px var(--ghost);display:none;}
+#ghost-enter.show{display:block;}
+#ghost-enter-sub{font-size:8px;color:#334;letter-spacing:2px;margin-top:6px;}
+
+#death-banner{position:fixed;top:38%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.96);border:1px solid var(--red);color:var(--red);font-size:11px;letter-spacing:3px;padding:11px 24px;z-index:800;pointer-events:none;text-align:center;text-shadow:0 0 10px var(--red);display:none;}
+#death-banner.show{display:block;}
+#death-banner-sub{font-size:8px;color:#334;letter-spacing:2px;margin-top:5px;}
+
+#wave-lbl{position:fixed;top:80px;left:50%;transform:translateX(-50%);color:#1a4a2a;font-size:7px;letter-spacing:4px;z-index:600;pointer-events:none;text-shadow:0 0 4px #1a4a2a;white-space:nowrap;display:none;}
+#wave-lbl.show{display:block;}
+
+/* ── Leaderboard ── */
+#lb-list{font-size:12px;line-height:2.2;letter-spacing:2px;text-align:left;margin-top:0;max-height:0;overflow:hidden;transition:max-height .3s ease,margin-top .2s;}
+
+/* ── Mobile controls ── */
+#mctrl{position:fixed;bottom:0;left:0;right:0;height:68px;display:flex;z-index:800;}
+.mb{flex:1;display:flex;align-items:center;justify-content:center;font-size:20px;color:#334;border-top:1px solid #1a2a1a;background:rgba(0,0,0,.7);cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;touch-action:manipulation;}
+.mb:active,.mb.pressed{background:rgba(57,255,20,.07);color:var(--green);}
+.mb-f{color:#2a4a2a;font-size:11px;letter-spacing:2px;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- HUD overlays -->
+<div id="cmd-panel"><div id="cmd-name">THE COMMANDER</div><div id="cmd-msg"></div></div>
+<div id="sb-alert">⚠  THE COMMANDER SEES YOU</div>
+<div id="cmd-adapt"><div id="cmd-adapt-msg"></div><div id="cmd-adapt-sub"></div></div>
+<div id="ghost-enter">YOUR GHOST ENTERS<div id="ghost-enter-sub">COMPETE AGAINST YOUR OWN HISTORY</div></div>
+<div id="death-banner">THIS IS WHERE YOU DIED<div id="death-banner-sub">STUDY IT</div></div>
+<div id="wave-lbl"></div>
+
+<!-- Screens -->
+<div id="ov">
+  <!-- START -->
+  <div id="s-start" class="scr">
+    <div class="ttl">GHOST GRID</div>
+    <div class="sub">DIGITAL INVADERS DESCEND</div>
+    <div class="ghost-row" id="ghost-row-btn">
+      <span class="ghost-lbl">GHOST REPLAY</span>
+      <div class="tog-wrap" id="tog-box"><div class="tog-knob"></div></div>
+      <span class="tog-val" id="tog-val">OFF</span>
+    </div>
+    <div class="pr pr-d" style="font-size:9px;margin-bottom:16px;max-width:260px;line-height:1.9;color:#336">YOUR LAST RUN REPLAYS BESIDE YOU<br>COMPETE AGAINST YOUR OWN HISTORY</div>
+    <div class="pr pr-g blink">PRESS SPACE TO START</div>
+    <div class="pr pr-c" style="margin-top:6px">PRESS H FOR HIGH SCORES</div>
+    <div class="pr pr-d" style="margin-top:16px;font-size:10px;line-height:2.2">ARROW KEYS / WASD — MOVE &nbsp;|&nbsp; SPACE — SHOOT</div>
+  </div>
+
+  <!-- HIGH SCORES -->
+  <div id="s-hi" class="scr off">
+    <div class="ttl" style="font-size:clamp(18px,4vw,28px);margin-bottom:14px">HIGH SCORES</div>
+    <div id="hi-list" style="font-size:13px;color:var(--green);line-height:2.4;letter-spacing:2px;min-width:180px;text-align:left;"></div>
+    <div class="pr pr-d blink" style="margin-top:20px;font-size:10px">PRESS SPACE TO RETURN</div>
+  </div>
+
+  <!-- WAVE CARD -->
+  <div id="s-wave" class="scr off">
+    <div class="ttl" id="wave-txt" style="font-size:clamp(20px,5vw,36px)"></div>
+    <div class="pr pr-d" id="wave-sub" style="font-size:10px;margin-top:8px;letter-spacing:3px"></div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="s-over" class="scr off" style="padding:12px 20px;overflow-y:auto;max-height:100vh;">
+    <div class="ttl" style="font-size:clamp(20px,5vw,36px);color:var(--red);text-shadow:0 0 14px var(--red);margin-bottom:2px">GAME OVER</div>
+    <div class="pr pr-d" style="margin-bottom:10px;font-size:10px">WAVE <span id="ov-wave">1</span></div>
+    <div id="cmd-taunt" style="border:1px solid #1a3a1a;background:rgba(0,20,10,.75);padding:8px 16px;margin-bottom:10px;max-width:300px;width:100%;font-size:11px;color:var(--cyan);line-height:1.9;letter-spacing:1px;text-shadow:0 0 5px var(--cyan);text-align:center;"></div>
+    <div class="srow">
+      <div class="scell"><div class="slbl">SCORE</div><div class="snum c-g" id="ov-score">0</div></div>
+      <div class="scell"><div class="slbl">GHOST</div><div class="snum c-gh" id="ov-ghost">--</div></div>
+      <div class="scell"><div class="slbl">BEST</div><div class="snum c-y" id="ov-best">0</div></div>
+      <div class="scell"><div class="slbl">DELTA</div><div class="snum c-r" id="ov-delta">--</div></div>
+    </div>
+    <div style="border:1px solid #1a3a1a;background:rgba(0,12,6,0.85);padding:10px 20px;margin-bottom:12px;width:100%;max-width:300px;cursor:pointer;" onclick="toggleLB()">
+      <div style="font-size:8px;letter-spacing:4px;color:#1a4a2a;text-align:center;display:flex;align-items:center;justify-content:center;gap:10px;">
+        <span id="lb-arrow" style="color:var(--green);font-size:10px;">▶</span>
+        <span style="color:#1a5a2a;letter-spacing:4px;">LEADERBOARD</span>
+        <span id="lb-count" style="color:#1a4a2a;font-size:9px;"></span>
+      </div>
+      <div id="lb-list"></div>
+    </div>
+    <div class="pr pr-g blink" style="font-size:11px;">PRESS SPACE TO RESTART</div>
+  </div>
+</div>
+
+<!-- Mobile controls -->
+<div id="mctrl">
+  <div class="mb" id="mc-l">&#9664;</div>
+  <div class="mb mb-f" id="mc-f">FIRE</div>
+  <div class="mb" id="mc-r">&#9654;</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  CANVAS SETUP
+// ─────────────────────────────────────────────
+const CV = document.getElementById('c'), ctx = CV.getContext('2d');
+let W, H, S;
+let stars = null;
+function resize() {
+  const mw = Math.min(window.innerWidth - 4, 520);
+  const mh = Math.min(window.innerHeight - 72, 640);
+  const r = 520 / 640;
+  let w = mw, h = mw / r;
+  if (h > mh) { h = mh; w = h * r; }
+  CV.width = W = Math.floor(w);
+  CV.height = H = Math.floor(h);
+  S = W / 520;
+  stars = null;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ─────────────────────────────────────────────
+//  CONSTANTS
+// ─────────────────────────────────────────────
+const COLS = 11, ROWS = 4;
+const ROW_PTS = [40, 40, 20, 10];
+const ROW_TYPES = ['elite', 'elite', 'medium', 'weak'];
+
+// ─────────────────────────────────────────────
+//  SOUND ENGINE  (Web Audio — no files)
+// ─────────────────────────────────────────────
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  return audioCtx;
+}
+function resumeAudio() { const a = getAudio(); if (a && a.state === 'suspended') a.resume(); }
+function playTone(freq, type, vol, dur, delay) {
+  delay = delay || 0;
+  const a = getAudio(); if (!a) return;
+  try {
+    const o = a.createOscillator(), g = a.createGain();
+    o.connect(g); g.connect(a.destination);
+    o.type = type;
+    o.frequency.setValueAtTime(freq, a.currentTime + delay);
+    g.gain.setValueAtTime(vol, a.currentTime + delay);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + delay + dur);
+    o.start(a.currentTime + delay);
+    o.stop(a.currentTime + delay + dur + 0.02);
+  } catch(e) {}
+}
+function sndShoot()    { playTone(880, 'square',   0.13, 0.07); }
+function sndEnemyDie(t){ const f={elite:120,medium:200,weak:300}[t]||200; playTone(f,'sawtooth',0.17,0.10); playTone(f*0.5,'square',0.08,0.14,0.05); }
+function sndPlayerHit(){ playTone(200,'sawtooth',0.25,0.13); playTone(130,'sawtooth',0.17,0.18,0.10); playTone(75,'sawtooth',0.13,0.26,0.20); }
+function sndEnemyShoot(){ playTone(175,'square',0.055,0.09); }
+function sndShieldHit() { playTone(270,'square',0.08,0.05); }
+function sndWaveClear() { [523,659,784,1047].forEach((f,i)=>playTone(f,'square',0.15,0.14,i*0.09)); }
+function sndLockon()    { playTone(640,'square',0.10,0.04); playTone(880,'square',0.08,0.04,0.05); }
+let marchBeat = 0, marchTick = 0;
+function tickMarch() {
+  marchTick++;
+  if (marchTick >= Math.max(4, calcStepInterval())) {
+    marchTick = 0;
+    playTone([160,140,120,100][marchBeat % 4], 'square', 0.045, 0.05);
+    marchBeat++;
+  }
+}
+
+// ─────────────────────────────────────────────
+//  WAVE ESCALATION
+// ─────────────────────────────────────────────
+const waveEsc = { diagonalDrift: false, proximityRage: false, splitTimer: 0 };
+let dangerCloseShownAt = 0;  // timestamp when danger close last triggered
+function applyWaveRules(n) {
+  waveEsc.diagonalDrift = (n >= 3);
+  waveEsc.splitTimer    = (n >= 5) ? (220 + Math.floor(Math.random() * 120)) : 0;
+  waveEsc.proximityRage = false;
+}
+
+// ─────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────
+let STATE = 'start', ghostEnabled = false;
+let score = 0, lives = 3, waveNum = 1;
+let bestScores = [], lastTauntIdx = -1;
+let lbOpen = false;
+
+// ─────────────────────────────────────────────
+//  PLAYER
+// ─────────────────────────────────────────────
+const PLR = { x: 0, y: 0, w: 0, h: 0, speed: 0, invTimer: 0 };
+let pBullet = null;
+function initPlayer() {
+  PLR.w = 24 * S; PLR.h = 14 * S;
+  PLR.x = W / 2;  PLR.y = H - 34 * S;
+  PLR.speed = Math.max(3.5, 3.5 * S); // minimum 3.5px so it never gets too slow
+  PLR.invTimer = 0;
+  pBullet = null;
+}
+
+// ─────────────────────────────────────────────
+//  ENEMIES
+// ─────────────────────────────────────────────
+let enemies = [], eDir = 1, eStepTimer = 0;
+let eBullets = [], eShootTimer = 80;
+
+const WAVE_SHAPES = [
+  { name: 'STANDARD GRID',   offsets: [0, 0, 0, 0],    xjitter: 0 },
+  { name: 'V-FORMATION',     offsets: [-20, 0, 0, -20], xjitter: 0 },
+  { name: 'CLUSTER STRIKE',  offsets: [0, 12, 24, 36],  xjitter: 0 },
+  { name: 'SPREAD ASSAULT',  offsets: [0, 0, 0, 0],    xjitter: 1 },
+  { name: 'CHEVRON',         offsets: [0, -14, 0, -14], xjitter: 0 },
+  { name: 'BLITZ FORMATION', offsets: [0, 0, 0, 0],    xjitter: 2 },
+];
+
+function calcStepInterval() {
+  const alive = enemies.filter(e => e.alive).length;
+  return Math.max(4, Math.round(4 + (alive / (ROWS * COLS)) * 46));
+}
+
+function initEnemies() {
+  enemies = [];
+  const rng = CMD.rng || Math.random;
+  const si = Math.min(waveNum - 1, WAVE_SHAPES.length - 1);
+  const shape = WAVE_SHAPES[si];
+  const offX = Math.floor(rng() * 16 - 8) * S;
+  const cw = 40 * S, rh = 28 * S;
+  const startX = (W - COLS * cw) / 2 + offX;
+  const startY = 52 * S;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      let cx = c % 2 === 0 ? 8 * S : -8 * S;
+      const colXOff = shape.xjitter === 1 ? cx : 0;
+      const rowYOff = shape.offsets[r] * S;
+      enemies.push({
+        x: startX + c * cw + colXOff,
+        y: startY + r * rh + rowYOff,
+        w: 20 * S, h: 14 * S,
+        type: ROW_TYPES[r], pts: ROW_PTS[r],
+        row: r, col: c,
+        alive: true, frame: 0, lockFlash: 0
+      });
+    }
+  }
+  eDir = 1; eStepTimer = 0;
+  eBullets = []; eShootTimer = 100 + Math.floor(Math.random() * 60);
+  showWaveLbl(shape.name);
+}
+
+function stepEnemies() {
+  const alive = enemies.filter(e => e.alive);
+  if (!alive.length) return;
+  const stepX = 7 * S * eDir;
+  let hit = false;
+  for (const e of alive) {
+    const nx = e.x + stepX;
+    if (nx < 4 * S || nx + e.w > W - 4 * S) { hit = true; break; }
+  }
+  if (hit) {
+    const prevDir = eDir;
+    eDir *= -1;
+    alive.forEach(e => {
+      e.y += 10 * S;
+      if (waveEsc.diagonalDrift) {
+        // each column fans outward from centre on bounce
+        const mid = COLS / 2;
+        e.x += (e.col - mid) * 4.5 * S * prevDir;  // fan outward visibly on each bounce
+      }
+    });
+  } else {
+    alive.forEach(e => e.x += stepX);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  SHIELDS
+// ─────────────────────────────────────────────
+let shields = [];
+function initShields() {
+  shields = [];
+  const bw = 7 * S, bh = 5 * S, sc = 6, sr = 3;
+  const shW = sc * bw, count = 4;
+  const gap = (W - count * shW) / (count + 1);
+  const sy = H - 90 * S;
+  for (let s = 0; s < count; s++) {
+    const ox = gap + (gap + shW) * s;
+    for (let r = 0; r < sr; r++) {
+      for (let c = 0; c < sc; c++) {
+        if (r === 0 && (c === 0 || c === sc - 1)) continue;
+        if (r === 1 && (c === 0 || c === sc - 1)) continue;
+        shields.push({ x: ox + c * bw, y: sy + r * bh, w: bw, h: bh, hp: 3 });
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+//  GHOST REPLAY
+// ─────────────────────────────────────────────
+let ghostRec = [], curRec = [], ghostHead = 0;
+let ghostBullets = [], ghostObj = { x: 0, y: 0 }, ghostScore = null;
+let ghostEnterShown = false;
+
+function updateGhost() {
+  if (!ghostRec.length || ghostHead >= ghostRec.length) return;
+  if (ghostHead === 0 && waveNum === 2 && ghostEnabled) triggerGhostEnter();
+  const f = ghostRec[ghostHead];
+  ghostObj.x = f.x * W; ghostObj.y = f.y * H;
+  if (f.shot) ghostBullets.push({ x: ghostObj.x, y: ghostObj.y - 10 * S, w: 2 * S, h: 8 * S });
+  ghostHead++;
+}
+
+// ─────────────────────────────────────────────
+//  PARTICLES
+// ─────────────────────────────────────────────
+let particles = [];
+function spawnPart(x, y, type) {
+  const palettes = {
+    elite: ['#ff4455','#ff8844','#ffdd00'],
+    medium: ['#00e5cc','#0088ff','#00ff88'],
+    weak: ['#ffe066','#00e5cc'],
+    player: ['#ffffff','#ffdd00','#ff8844']
+  };
+  const cols = palettes[type] || ['#fff'];
+  for (let i = 0; i < 10; i++) {
+    const a = Math.random() * Math.PI * 2, sp = (1 + Math.random() * 2.5) * S;
+    particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp, life: 1,
+      decay: 0.034 + Math.random() * 0.028,
+      color: cols[Math.floor(Math.random() * cols.length)],
+      r: (1.5 + Math.random() * 2) * S });
+  }
+}
+
+// ─────────────────────────────────────────────
+//  COMMANDER  (adaptive AI)
+// ─────────────────────────────────────────────
+const CMD = {
+  peak: 0, avg: 0, floor: Infinity, sessions: 0,
+  suspicion: 0, alerted: false,
+  evolveTimer: 0, EVOLVE: 900,
+  diffLv: 1,
+  hiddenMode: 'normal', hiddenTimer: 0, HIDDEN: 400,
+  seed: 0, rng: null,
+  suppressCols: new Set(),
+  burstActive: false, burstTimer: 0,
+  playerPredX: 260
+};
+function mkRNG(s) { return () => { s=(s*1664525+1013904223)&0xffffffff; return (s>>>0)/0xffffffff; }; }
+
+// Proximity boost: faster shooting when enemies close
+function getProximityBoost() {
+  const alive = enemies.filter(e => e.alive);
+  if (!alive.length) return 1;
+  const lowestY = Math.max(...alive.map(e => e.y + e.h));
+  const dist = PLR.y - lowestY;
+  if (dist < H * 0.40) {
+    if (!waveEsc.proximityRage) dangerCloseShownAt = Date.now();
+    waveEsc.proximityRage = true;  return 2.8;
+  }
+  if (dist < H * 0.62) {
+    if (!waveEsc.proximityRage) dangerCloseShownAt = Date.now();
+    waveEsc.proximityRage = true;  return 1.8;
+  }
+  waveEsc.proximityRage = false;
+  return 1;
+}
+
+
+// Lock-on flash timer
+let lockOnTimer = 0;
+
+function fireEnemyBullet() {
+  const boost = getProximityBoost();
+  const alive = enemies.filter(e => e.alive);
+  if (!alive.length) return;
+
+  let intv = Math.max(36, Math.floor((105 - CMD.diffLv * 4 + Math.floor(Math.random() * 45)) / boost));
+  if (waveEsc.proximityRage) intv = Math.max(28, Math.floor(intv * 0.5));
+  if (CMD.hiddenMode === 'suppress') intv = Math.max(intv, 200);
+  if (CMD.hiddenMode === 'chaos')    intv = 65 + Math.floor(Math.random() * 80);
+  if (CMD.burstActive) intv = Math.max(65, intv);
+  eShootTimer = intv;
+
+  CMD.playerPredX = PLR.x + (PLR.x - lastPX) * 7;
+
+  const eligCols = [...new Set(alive.filter(e => CMD.burstActive || !CMD.suppressCols.has(e.col)).map(e => e.col))];
+  if (!eligCols.length) return;
+
+  let col;
+  if (CMD.burstActive) {
+    // aim closest column to predicted player position
+    col = eligCols.reduce((best, c) => {
+      const cx = alive.filter(e => e.col === c).reduce((a, e) => a + e.x + e.w/2, 0) / alive.filter(e => e.col === c).length;
+      const bx = alive.filter(e => e.col === best).reduce((a, e) => a + e.x + e.w/2, 0) / alive.filter(e => e.col === best).length;
+      return Math.abs(cx - CMD.playerPredX) < Math.abs(bx - CMD.playerPredX) ? c : best;
+    }, eligCols[0]);
+    enemies.filter(e => e.alive && e.col === col).forEach(e => e.lockFlash = 18);
+    sndLockon(); lockOnTimer = 18;
+  } else {
+    col = eligCols[Math.floor(Math.random() * eligCols.length)];
+  }
+
+  const colE = alive.filter(e => e.col === col);
+  if (!colE.length) return;
+  const shooter = colE.reduce((a, b) => a.y > b.y ? a : b);
+  sndEnemyShoot();
+  eBullets.push({ x: shooter.x + shooter.w/2, y: shooter.y + shooter.h, w: 3*S, h: 9*S,
+    speed: (1.9 + CMD.diffLv * 0.10) * S, aimed: Math.random() < 0.22 });
+}
+
+// ─────────────────────────────────────────────
+//  COMMANDER AI SYSTEMS
+// ─────────────────────────────────────────────
+let posHistory = [], shotsTotal = 0, shotsHit = 0, lastPX = 0;
+
+function updateSandbag() {
+  if (posHistory.length < 60) return;
+  const rec = posHistory.slice(-30);
+  const mean = rec.reduce((a,b)=>a+b,0) / rec.length;
+  const variance = rec.reduce((a,x) => a + Math.abs(x-mean), 0) / rec.length;
+  const f1 = variance < 5 * S;
+  const acc = shotsTotal > 15 ? shotsHit / shotsTotal : 1;
+  const f2 = acc < 0.08 && shotsTotal > 20;
+  const f3 = CMD.peak > 300 && score < CMD.peak * 0.15 && CMD.sessions > 1;
+  const flags = [f1, f2, f3].filter(Boolean).length;
+  if (flags >= 2 && !CMD.alerted) {
+    CMD.suspicion++;
+    if (CMD.suspicion > 10) {
+      CMD.alerted = true; CMD.diffLv = Math.min(10, CMD.diffLv + 3);
+      show('sb-alert'); setTimeout(() => hide('sb-alert'), 2800);
+      cmdSay('"I see what you are doing."', 3000);
+    }
+  } else if (flags < 2) { CMD.suspicion = Math.max(0, CMD.suspicion - 1); }
+}
+
+function updateEvolve() {
+  CMD.evolveTimer++;
+  if (CMD.evolveTimer < CMD.EVOLVE) return;
+  CMD.evolveTimer = 0;
+  const r = posHistory.slice(-20);
+  if (r.length >= 20) {
+    const m = r.reduce((a,b)=>a+b,0)/r.length;
+    const v = r.reduce((a,x)=>a+Math.abs(x-m),0)/r.length;
+    if (v > 14 * S) {
+      CMD.diffLv = Math.min(10, CMD.diffLv + 1);
+      const lb = r.filter(x=>x<W/2).length;
+      let msg, sub;
+      if (lb > r.length * 0.7)      { msg='"You keep going left."';      sub='COMPENSATING: RIGHT FLANK'; }
+      else if (lb < r.length * 0.3) { msg='"You favour the right side."'; sub='COMPENSATING: LEFT FLANK'; }
+      else                           { msg='"Pattern recognised."';        sub='DIFFICULTY ESCALATING'; }
+      showAdaptBanner(msg, sub);
+      cmdSay(msg, 2000);
+    }
+  }
+  if (CMD.peak > 350 && Math.random() < 0.2) {
+    const pv = CMD.diffLv; CMD.diffLv = Math.min(10, CMD.diffLv + 2);
+    showAdaptBanner('"Accessing your peak data."', 'DEPLOYING HISTORICAL DIFFICULTY');
+    setTimeout(() => CMD.diffLv = Math.max(1, pv), 4000);
+  }
+}
+
+function updateHidden() {
+  CMD.hiddenTimer++;
+  if (CMD.hiddenTimer < CMD.HIDDEN) return;
+  CMD.hiddenTimer = 0; CMD.HIDDEN = 300 + Math.random() * 360;
+  if (CMD.burstTimer > 0) {
+    CMD.burstTimer--;
+    if (CMD.burstTimer === 0) { CMD.burstActive = false; CMD.hiddenMode = 'normal'; }
+  }
+  const roll = Math.random();
+  if (roll < 0.2) {
+    CMD.hiddenMode = 'suppress';
+    const ac = [...new Set(enemies.filter(e=>e.alive).map(e=>e.col))];
+    CMD.suppressCols.clear();
+    const n = 2 + Math.floor(Math.random() * 2);
+    while (CMD.suppressCols.size < n && ac.length > 0) CMD.suppressCols.add(ac[Math.floor(Math.random()*ac.length)]);
+    setTimeout(() => { CMD.suppressCols.clear(); CMD.hiddenMode='burst'; CMD.burstActive=true; CMD.burstTimer=80; },
+      1400 + Math.random() * 900);
+  } else if (roll < 0.33) {
+    CMD.hiddenMode = 'chaos';
+    setTimeout(() => CMD.hiddenMode = 'normal', 1800);
+  } else {
+    CMD.hiddenMode = 'normal'; CMD.suppressCols.clear();
+  }
+}
+
+function updateSplitShot() {
+  if (!waveEsc.splitTimer) return;
+  waveEsc.splitTimer--;
+  if (waveEsc.splitTimer > 0) return;
+  waveEsc.splitTimer = 190 + Math.floor(Math.random() * 130);
+  const alive = enemies.filter(e => e.alive);
+  const cols = [...new Set(alive.map(e => e.col))];
+  if (cols.length < 2) return;
+  const used = new Set();
+  for (let i = 0; i < 2; i++) {
+    const remaining = cols.filter(c => !used.has(c));
+    if (!remaining.length) break;
+    const col = remaining[Math.floor(Math.random() * remaining.length)];
+    used.add(col);
+    const colE = alive.filter(e => e.col === col);
+    if (!colE.length) continue;
+    const shooter = colE.reduce((a, b) => a.y > b.y ? a : b);
+    sndEnemyShoot();
+    eBullets.push({ x: shooter.x+shooter.w/2, y: shooter.y+shooter.h, w:3*S, h:9*S,
+      speed: (2.1+CMD.diffLv*0.09)*S, aimed: false });
+  }
+  cmdSay('"Split fire."', 1000);
+}
+
+// ─────────────────────────────────────────────
+//  DEATH REPLAY
+// ─────────────────────────────────────────────
+let deathRec = [], deathHead = 0, deathObj = { x: 0, y: 0 }, deathActive = false;
+function startDeathReplay(done) {
+  if (!curRec.length) { if (done) done(); return; }
+  deathRec = curRec.slice(-180);
+  deathHead = 0; deathObj = { x: PLR.x, y: PLR.y };
+  deathActive = true;
+  show('death-banner');
+  setTimeout(() => { hide('death-banner'); deathActive = false; if (done) done(); }, 2500);
+}
+
+// ─────────────────────────────────────────────
+//  SESSION / GAME FLOW
+// ─────────────────────────────────────────────
+function beginGame() {
+  resumeAudio();
+  hideAllScreens();
+  score = 0; lives = 3; waveNum = 1;
+  ghostHead = 0; curRec = []; ghostBullets = []; particles = [];
+  CMD.seed = Date.now() ^ Math.floor(Math.random() * 0xfffff);
+  CMD.rng = mkRNG(CMD.seed);
+  CMD.diffLv = 1; CMD.evolveTimer = 0; CMD.suspicion = 0; CMD.alerted = false;
+  CMD.hiddenMode = 'normal'; CMD.hiddenTimer = 0; CMD.suppressCols.clear(); CMD.burstActive = false;
+  posHistory = []; shotsTotal = 0; shotsHit = 0; lastPX = W / 2;
+  ghostEnterShown = false; deathActive = false;
+  // clear all HUD overlays
+  ['sb-alert','cmd-panel','cmd-adapt','ghost-enter','death-banner','wave-lbl'].forEach(hide);
+  applyWaveRules(1); initPlayer(); initEnemies(); initShields();
+  STATE = 'wave';
+  showWaveCard(waveNum, () => { STATE = 'playing'; });
+}
+
+function endSession() {
+  STATE = 'paused';
+  ghostRec = [...curRec]; ghostScore = score;
+  CMD.sessions++;
+  if (score > CMD.peak) CMD.peak = score;
+  if (CMD.floor === Infinity || score < CMD.floor) CMD.floor = score;
+  CMD.avg = Math.round((CMD.avg * (CMD.sessions - 1) + score) / CMD.sessions);
+  bestScores.push(score); bestScores.sort((a,b)=>b-a); bestScores = bestScores.slice(0, 10);
+  ghostEnterShown = false;
+  startDeathReplay(() => setTimeout(showOver, 400));
+}
+
+// ─────────────────────────────────────────────
+//  INPUT
+// ─────────────────────────────────────────────
+const K = {};
+document.addEventListener('keydown', e => {
+  K[e.code] = true;
+  resumeAudio();
+  if (['Space','ArrowLeft','ArrowRight','KeyA','KeyD'].includes(e.code)) e.preventDefault();
+  if (STATE === 'start' && e.code === 'Space') beginGame();
+  if (STATE === 'start' && e.code === 'KeyH')  showHi();
+  if (STATE === 'hi'    && e.code === 'Space') showStart();
+  if (STATE === 'over'  && e.code === 'Space') beginGame();
+});
+document.addEventListener('keyup', e => { K[e.code] = false; });
+// Reset keys on blur so nothing gets "stuck"
+window.addEventListener('blur', () => { Object.keys(K).forEach(k => K[k] = false); });
+
+// Mobile controls — using mousedown/up too for desktop testing
+function bindBtn(id, key) {
+  const el = document.getElementById(id);
+  const press = e => { K[key] = true; resumeAudio(); el.classList.add('pressed'); e.preventDefault(); };
+  const release = e => { K[key] = false; el.classList.remove('pressed'); e.preventDefault(); };
+  el.addEventListener('touchstart', press, { passive: false });
+  el.addEventListener('touchend',   release, { passive: false });
+  el.addEventListener('touchcancel',release, { passive: false });
+  el.addEventListener('mousedown',  press);
+  el.addEventListener('mouseup',    release);
+  el.addEventListener('mouseleave', release);
+}
+bindBtn('mc-l', 'ArrowLeft');
+bindBtn('mc-r', 'ArrowRight');
+bindBtn('mc-f', 'Space');
+
+// ─────────────────────────────────────────────
+//  UI HELPERS
+// ─────────────────────────────────────────────
+function show(id) { document.getElementById(id).classList.add('show'); }
+function hide(id) { document.getElementById(id).classList.remove('show'); }
+
+function hideAllScreens() {
+  ['s-start','s-hi','s-wave','s-over'].forEach(id => document.getElementById(id).classList.add('off'));
+}
+function showStart() {
+  hideAllScreens();
+  document.getElementById('s-start').classList.remove('off');
+  STATE = 'start';
+}
+function showHi() {
+  hideAllScreens();
+  const el = document.getElementById('hi-list');
+  el.innerHTML = bestScores.length === 0
+    ? '<span style="color:#334">NO SCORES YET</span>'
+    : bestScores.slice(0,8).map((s,i)=>
+        `<span style="color:#334">${String(i+1).padStart(2,'0')}.</span>  <span style="color:var(--green)">${String(s).padStart(6,'0')}</span>`
+      ).join('<br>');
+  document.getElementById('s-hi').classList.remove('off');
+  STATE = 'hi';
+}
+function showWaveCard(n, cb) {
+  document.getElementById('wave-txt').textContent = 'WAVE  ' + n;
+  document.getElementById('wave-sub').textContent = n === 1 ? 'THE COMMANDER IS WATCHING' : 'DIFFICULTY INCREASING';
+  document.getElementById('s-wave').classList.remove('off');
+  setTimeout(() => { document.getElementById('s-wave').classList.add('off'); if (cb) cb(); }, 1700);
+}
+function showOver() {
+  hideAllScreens();
+  lbOpen = false;
+  document.getElementById('ov-wave').textContent = waveNum;
+  document.getElementById('ov-score').textContent = String(score).padStart(6,'0');
+  // Ghost score: show actual last run score (no fudge factor)
+  const pg = ghostScore !== null && CMD.sessions > 1 ? ghostScore : null;
+  document.getElementById('ov-ghost').textContent = ghostEnabled && pg !== null ? String(pg).padStart(6,'0') : '--';
+  document.getElementById('ov-best').textContent = String(bestScores[0] || 0).padStart(6,'0');
+  const delta = ghostEnabled && pg !== null ? score - pg : null;
+  const del = document.getElementById('ov-delta');
+  del.textContent = delta !== null ? (delta >= 0 ? '+' + delta : String(delta)) : '--';
+  del.className = 'snum ' + (delta === null ? 'c-r' : delta >= 0 ? 'c-g' : 'c-r');
+  document.getElementById('cmd-taunt').textContent = getTaunt(CMD.alerted);
+  // Leaderboard
+  const lb = document.getElementById('lb-list');
+  document.getElementById('lb-count').textContent = bestScores.length ? `(${bestScores.length})` : '';
+  lb.style.maxHeight = '0'; lb.style.marginTop = '0';
+  document.getElementById('lb-arrow').textContent = '▶';
+  if (bestScores.length === 0) {
+    lb.innerHTML = '<div style="color:#223;text-align:center;padding:6px 0">NO SCORES YET</div>';
+  } else {
+    lb.innerHTML = bestScores.slice(0,8).map((s,i) => {
+      const isNew = s === score && i === bestScores.indexOf(score);
+      const col = isNew ? 'var(--yellow)' : (i === 0 ? 'var(--green)' : '#2a5a2a');
+      const glow = isNew ? 'text-shadow:0 0 8px var(--yellow);' : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;color:${col};${glow}padding:1px 0">
+        <span style="min-width:20px">${i===0&&isNew?'▶':String(i+1).padStart(2,' ')}</span>
+        <span style="flex:1;text-align:right">${String(s).padStart(6,'0')}</span>
+        ${isNew?'<span style="font-size:8px;letter-spacing:2px;color:var(--yellow)">YOU</span>':'<span style="min-width:28px"></span>'}
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('s-over').classList.remove('off');
+  STATE = 'over';
+}
+function toggleLB() {
+  lbOpen = !lbOpen;
+  const list = document.getElementById('lb-list');
+  const arrow = document.getElementById('lb-arrow');
+  if (lbOpen) { list.style.maxHeight='200px'; list.style.marginTop='10px'; arrow.textContent='▼'; }
+  else         { list.style.maxHeight='0';     list.style.marginTop='0';    arrow.textContent='▶'; }
+}
+function toggleGhost(e) {
+  if (e) e.stopPropagation();
+  ghostEnabled = !ghostEnabled;
+  const b = document.getElementById('tog-box'), v = document.getElementById('tog-val');
+  b.classList.toggle('on', ghostEnabled);
+  v.textContent = ghostEnabled ? 'ON' : 'OFF';
+}
+// Wire ghost toggle — handles both mouse and touch reliably
+(function() {
+  const btn = document.getElementById('ghost-row-btn');
+  let lastToggle = 0;
+  function doToggle(e) {
+    e.stopPropagation(); e.preventDefault();
+    const now = Date.now();
+    if (now - lastToggle < 300) return; // debounce
+    lastToggle = now;
+    toggleGhost();
+  }
+  btn.addEventListener('click',      doToggle);
+  btn.addEventListener('touchend',   doToggle, { passive: false });
+})();
+
+let cmdTimer = 0;
+function cmdSay(msg, dur) {
+  document.getElementById('cmd-msg').textContent = msg;
+  show('cmd-panel'); clearTimeout(cmdTimer);
+  cmdTimer = setTimeout(() => hide('cmd-panel'), dur || 2400);
+}
+let adaptTimer = 0;
+function showAdaptBanner(msg, sub) {
+  document.getElementById('cmd-adapt-msg').textContent = msg;
+  document.getElementById('cmd-adapt-sub').textContent = sub || '';
+  show('cmd-adapt'); clearTimeout(adaptTimer);
+  adaptTimer = setTimeout(() => hide('cmd-adapt'), 2200);
+}
+function triggerGhostEnter() {
+  if (ghostEnterShown) return; ghostEnterShown = true;
+  show('ghost-enter'); setTimeout(() => hide('ghost-enter'), 1800);
+}
+function showWaveLbl(label) {
+  const el = document.getElementById('wave-lbl');
+  el.textContent = label; show('wave-lbl');
+  setTimeout(() => hide('wave-lbl'), 2400);
+}
+
+const TAUNTS = ['"Predictable."','"You dodge left too often."','"Your ghost played better."','"Efficient... barely."','"I memorised every move."','"The silence before my shots — did you relax?"','"Your peak was higher. What happened?"','"I adjusted before you realised."','"You flinched. I was already there."','"Every pattern you have, I now own."','"Three good moves. Then you forgot."'];
+function getTaunt(sb) {
+  const pool = sb ? ['"I see you holding back."','"Sandbagging changes nothing."'] : TAUNTS;
+  let i; do { i = Math.floor(Math.random() * pool.length); } while (i === lastTauntIdx && pool.length > 1);
+  lastTauntIdx = i; return pool[i];
+}
+
+// ─────────────────────────────────────────────
+//  COLLISION
+// ─────────────────────────────────────────────
+function rHit(a, b) {
+  return a.x < b.x + b.w && a.x + (a.w||0) > b.x && a.y < b.y + b.h && a.y + (a.h||0) > b.y;
+}
+
+// ─────────────────────────────────────────────
+//  UPDATE LOOP
+// ─────────────────────────────────────────────
+function update() {
+  // Death replay runs during paused state
+  if (deathActive && deathHead < deathRec.length) {
+    const f = deathRec[deathHead];
+    deathObj.x = f.x * W; deathObj.y = f.y * H;
+    deathHead++;
+  }
+  if (STATE !== 'playing') return;
+
+  // Lock-on flash decay
+  if (lockOnTimer > 0) { lockOnTimer--; enemies.forEach(e => { if (e.lockFlash > 0) e.lockFlash--; }); }
+
+  // Player invincibility
+  if (PLR.invTimer > 0) PLR.invTimer--;
+
+  // ── MOVEMENT ──
+  lastPX = PLR.x;
+  if ((K['ArrowLeft'] || K['KeyA'])  && PLR.x > PLR.w / 2 + 2)     PLR.x -= PLR.speed;
+  if ((K['ArrowRight'] || K['KeyD']) && PLR.x < W - PLR.w / 2 - 2) PLR.x += PLR.speed;
+
+  // Clamp
+  PLR.x = Math.max(PLR.w/2 + 2, Math.min(W - PLR.w/2 - 2, PLR.x));
+
+  posHistory.push(PLR.x);
+  if (posHistory.length > 120) posHistory.shift();
+
+  // ── SHOOT ──
+  if (K['Space'] && !pBullet) {
+    sndShoot();
+    pBullet = { x: PLR.x, y: PLR.y - PLR.h / 2, w: 3*S, h: 12*S, speed: 9*S };
+    shotsTotal++;
+    if (curRec.length > 0) curRec[curRec.length - 1].shot = true;
+  }
+
+  // Record position for ghost
+  curRec.push({ x: PLR.x / W, y: PLR.y / H, shot: false });
+
+  // Advance bullet
+  if (pBullet) { pBullet.y -= pBullet.speed; if (pBullet.y < -pBullet.h) pBullet = null; }
+
+  // Ghost
+  if (ghostEnabled) updateGhost();
+
+  // ── ENEMIES STEP ──
+  eStepTimer++;
+  if (eStepTimer >= calcStepInterval()) {
+    eStepTimer = 0;
+    stepEnemies();
+    enemies.forEach(e => { if (e.alive) e.frame = 1 - e.frame; });
+  }
+
+  // ── ENEMY SHOOT ──
+  eShootTimer--;
+  if (eShootTimer <= 0) fireEnemyBullet();
+
+  // Move enemy bullets (with weak homing on aimed ones)
+  eBullets = eBullets.filter(b => {
+    if (b.aimed) b.x += (CMD.playerPredX - b.x) * 0.010;
+    b.y += b.speed;
+    return b.y < H + 10;
+  });
+
+  // Move ghost bullets
+  ghostBullets = ghostBullets.filter(b => { b.y -= 8 * S; return b.y > -10; });
+
+  // Commander systems
+  tickMarch(); updateSandbag(); updateEvolve(); updateHidden(); updateSplitShot();
+
+  // ── PLAYER BULLET HITS ENEMY ──
+  if (pBullet) {
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      if (rHit(pBullet, { x: e.x, y: e.y, w: e.w, h: e.h })) {
+        e.alive = false; score += e.pts; shotsHit++;
+        spawnPart(e.x + e.w/2, e.y + e.h/2, e.type);
+        sndEnemyDie(e.type); pBullet = null; break;
+      }
+    }
+  }
+  // ── PLAYER BULLET HITS SHIELD ──
+  if (pBullet) {
+    for (const sh of shields) {
+      if (sh.hp <= 0) continue;
+      if (rHit(pBullet, { x: sh.x, y: sh.y, w: sh.w, h: sh.h })) {
+        sndShieldHit(); sh.hp--; pBullet = null; break;
+      }
+    }
+  }
+
+  // ── ENEMY BULLET HITS PLAYER ──
+  if (PLR.invTimer <= 0) {
+    for (const b of eBullets) {
+      if (rHit(b, { x: PLR.x - PLR.w/2, y: PLR.y - PLR.h/2, w: PLR.w, h: PLR.h })) {
+        b.y = H + 99; lives--;
+        sndPlayerHit(); spawnPart(PLR.x, PLR.y, 'player');
+        if (lives <= 0) { endSession(); return; }
+        PLR.invTimer = 120; break;
+      }
+    }
+  }
+
+  // ── ENEMY BULLET HITS SHIELD ──
+  for (const b of eBullets) {
+    for (const sh of shields) {
+      if (sh.hp <= 0) continue;
+      if (rHit(b, { x: sh.x, y: sh.y, w: sh.w, h: sh.h })) { sh.hp--; b.y = H + 99; }
+    }
+  }
+
+  // ── ENEMY REACHES BOTTOM ──
+  for (const e of enemies) {
+    if (e.alive && e.y + e.h > H - 38 * S) { endSession(); return; }
+  }
+
+  // ── WAVE CLEAR ──
+  if (enemies.every(e => !e.alive)) {
+    sndWaveClear(); waveNum++;
+    CMD.diffLv = Math.min(10, CMD.diffLv + 1);
+    applyWaveRules(waveNum); initEnemies(); initShields();
+    STATE = 'wave';
+    showWaveCard(waveNum, () => { STATE = 'playing'; });
+  }
+
+  // Particles
+  particles = particles.filter(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.07 * S; p.life -= p.decay;
+    return p.life > 0;
+  });
+}
+
+// ─────────────────────────────────────────────
+//  DRAW
+// ─────────────────────────────────────────────
+
+function drawStars() {
+  if (!stars) { stars=[]; for(let i=0;i<60;i++) stars.push({x:Math.random(),y:Math.random(),r:Math.random()*1.1,b:Math.random()}); }
+  stars.forEach(s => {
+    ctx.globalAlpha = 0.1 + s.b * 0.28;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(s.x*W, s.y*H, s.r*S, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  ctx.font = Math.round(10*S) + 'px "Share Tech Mono",monospace';
+  ctx.textBaseline = 'top';
+  // Score
+  ctx.fillStyle = '#39ff14'; ctx.shadowColor = '#39ff14'; ctx.shadowBlur = 5;
+  ctx.fillText('SCORE  ' + String(score).padStart(6,'0'), 8*S, 6*S);
+  // Ghost score (centre)
+  if (ghostEnabled && ghostRec.length > 0) {
+    ctx.fillStyle = '#a8c4d8'; ctx.shadowColor = '#a8c4d8';
+    ctx.fillText('GHOST  ' + String(ghostScore||0).padStart(6,'0'), W/2 - 44*S, 6*S);
+  }
+  // Lives (right)
+  ctx.fillStyle = '#ffe066'; ctx.shadowColor = '#ffe066';
+  ctx.fillText('\u2665 '.repeat(lives).trim(), W - 52*S, 6*S);
+  // Danger close — semi-transparent pulsing bar, vanishes after 3s
+  if (waveEsc.proximityRage) {
+    const age = (Date.now() - dangerCloseShownAt) / 1000;
+    if (age < 3.0) {
+      const fadeOut = age > 2.0 ? 1 - (age - 2.0) : 1;  // fade last 1s
+      const pulse = 0.25 + 0.15 * Math.sin(Date.now() * 0.012);  // subtle pulse, max 0.4
+      ctx.save();
+      ctx.globalAlpha = pulse * fadeOut;
+      ctx.fillStyle = '#ff4455';
+      ctx.fillRect(0, H - 72*S, W, 18*S);
+      ctx.globalAlpha = 0.75 * fadeOut;
+      ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#ff4455'; ctx.shadowBlur = 14;
+      ctx.font = 'bold ' + Math.round(9*S) + 'px "Share Tech Mono",monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('! DANGER CLOSE !', W/2, H - 68*S);
+      ctx.textAlign = 'left';
+      ctx.restore();
+    }
+  }
+  ctx.shadowBlur = 0;
+}
+
+function drawPlayer() {
+  if (PLR.invTimer > 0 && Math.floor(PLR.invTimer / 6) % 2 === 1) return;
+  const x=PLR.x, y=PLR.y, s=S;
+  ctx.fillStyle = '#e8e8e8'; ctx.shadowColor = '#e8e8e8'; ctx.shadowBlur = 8;
+  ctx.fillRect(x-10*s, y-3*s,  20*s, 9*s);
+  ctx.fillRect(x-2*s,  y-11*s,  4*s, 9*s);
+  ctx.fillRect(x-13*s, y+3*s,   5*s, 5*s);
+  ctx.fillRect(x+8*s,  y+3*s,   5*s, 5*s);
+  ctx.shadowBlur = 0;
+}
+
+function drawGhost() {
+  if (!ghostEnabled || !ghostRec.length || ghostHead >= ghostRec.length) return;
+  const x=ghostObj.x, y=ghostObj.y, s=S;
+  ctx.save(); ctx.globalAlpha=0.28;
+  ctx.fillStyle='#a8c4d8'; ctx.shadowColor='#a8c4d8'; ctx.shadowBlur=5;
+  ctx.fillRect(x-10*s, y-3*s,  20*s, 9*s);
+  ctx.fillRect(x-2*s,  y-11*s,  4*s, 9*s);
+  ctx.fillRect(x-13*s, y+3*s,   5*s, 5*s);
+  ctx.fillRect(x+8*s,  y+3*s,   5*s, 5*s);
+  ctx.restore();
+}
+
+function drawEnemy(e) {
+  const cx=e.x+e.w/2, cy=e.y+e.h/2, s=S, f=e.frame;
+  const base = { elite:'#ff4455', medium:'#00e5cc', weak:'#39ff14' };
+  const col = e.lockFlash > 0 ? (e.lockFlash%6<3 ? '#ffffff' : '#ff2200') : (base[e.type]||'#fff');
+  ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = e.lockFlash>0 ? 14 : 5;
+  if (e.type === 'elite') {
+    ctx.fillRect(cx-7*s,cy-3*s,14*s,6*s); ctx.fillRect(cx-4*s,cy-7*s,8*s,4*s);
+    if(f===0){ctx.fillRect(cx-9*s,cy+2*s,3*s,3*s);ctx.fillRect(cx+6*s,cy+2*s,3*s,3*s);}
+    else     {ctx.fillRect(cx-10*s,cy,3*s,3*s);ctx.fillRect(cx+7*s,cy,3*s,3*s);}
+    ctx.fillStyle='#000'; ctx.shadowBlur=0;
+    ctx.fillRect(cx-4*s,cy-2*s,3*s,4*s); ctx.fillRect(cx+1*s,cy-2*s,3*s,4*s);
+  } else if (e.type === 'medium') {
+    ctx.fillRect(cx-7*s,cy-5*s,14*s,8*s); ctx.fillRect(cx-4*s,cy-8*s,8*s,4*s);
+    if(f===0){ctx.fillRect(cx-10*s,cy-1*s,3*s,5*s);ctx.fillRect(cx+7*s,cy-1*s,3*s,5*s);ctx.fillRect(cx-5*s,cy+3*s,3*s,3*s);ctx.fillRect(cx+2*s,cy+3*s,3*s,3*s);}
+    else     {ctx.fillRect(cx-10*s,cy+1*s,3*s,5*s);ctx.fillRect(cx+7*s,cy+1*s,3*s,5*s);ctx.fillRect(cx-6*s,cy+3*s,3*s,3*s);ctx.fillRect(cx+3*s,cy+3*s,3*s,3*s);}
+    ctx.fillStyle='#000'; ctx.shadowBlur=0;
+    ctx.fillRect(cx-4*s,cy-3*s,2*s,3*s); ctx.fillRect(cx+2*s,cy-3*s,2*s,3*s);
+  } else {
+    ctx.fillRect(cx-6*s,cy-6*s,12*s,10*s); ctx.fillRect(cx-8*s,cy-2*s,2*s,4*s); ctx.fillRect(cx+6*s,cy-2*s,2*s,4*s);
+    if(f===0){ctx.fillRect(cx-8*s,cy+4*s,3*s,3*s);ctx.fillRect(cx-2*s,cy+4*s,3*s,3*s);ctx.fillRect(cx+4*s,cy+4*s,3*s,3*s);}
+    else     {ctx.fillRect(cx-7*s,cy+4*s,3*s,3*s);ctx.fillRect(cx-1*s,cy+4*s,3*s,3*s);ctx.fillRect(cx+5*s,cy+4*s,3*s,3*s);}
+    ctx.fillStyle='#000'; ctx.shadowBlur=0;
+    ctx.fillRect(cx-4*s,cy-3*s,2*s,3*s); ctx.fillRect(cx+2*s,cy-3*s,2*s,3*s); ctx.fillRect(cx-1*s,cy,2*s,2*s);
+  }
+  ctx.shadowBlur = 0;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  drawStars();
+
+  if (STATE === 'start' || STATE === 'hi') return;
+
+  drawHUD();
+
+  // Suppress visual feedback — red vignette + label
+  if (CMD.hiddenMode === 'suppress') {
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+    ctx.save();
+    ctx.font = Math.round(7*S) + 'px "Share Tech Mono",monospace';
+    ctx.fillStyle = '#ff4455'; ctx.shadowColor = '#ff4455'; ctx.shadowBlur = 8;
+    ctx.textAlign = 'center';
+    ctx.fillText('SUPPRESSING FIRE', W/2, 22*S);
+    ctx.textAlign = 'left';
+    ctx.restore();
+  }
+  // Burst visual feedback — cyan flash
+  if (CMD.burstActive) {
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = '#00e5cc';
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+    ctx.save();
+    ctx.font = Math.round(7*S) + 'px "Share Tech Mono",monospace';
+    ctx.fillStyle = '#00e5cc'; ctx.shadowColor = '#00e5cc'; ctx.shadowBlur = 8;
+    ctx.textAlign = 'center';
+    ctx.fillText('BURST INCOMING', W/2, 22*S);
+    ctx.textAlign = 'left';
+    ctx.restore();
+  }
+
+  // Ground line
+  ctx.strokeStyle = 'rgba(57,255,20,0.08)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, H-26*S); ctx.lineTo(W, H-26*S); ctx.stroke();
+
+  // Shields
+  shields.forEach(sh => {
+    if (sh.hp <= 0) return;
+    ctx.globalAlpha = [0.9, 0.55, 0.22][3 - sh.hp] || 0.9;
+    ctx.fillStyle = '#00e5cc'; ctx.shadowColor = '#00e5cc'; ctx.shadowBlur = 3;
+    ctx.fillRect(sh.x, sh.y, sh.w, sh.h); ctx.shadowBlur = 0;
+  }); ctx.globalAlpha = 1;
+
+  drawGhost();
+
+  // Ghost bullets
+  ghostBullets.forEach(b => {
+    ctx.save(); ctx.globalAlpha=0.30;
+    ctx.fillStyle='#a8c4d8'; ctx.shadowColor='#a8c4d8'; ctx.shadowBlur=4;
+    ctx.fillRect(b.x-b.w/2, b.y, b.w, b.h);
+    ctx.restore();
+  });
+
+  // Death replay ghost (red tint)
+  if (deathActive && STATE === 'paused') {
+    const x=deathObj.x, y=deathObj.y, s=S;
+    ctx.save(); ctx.globalAlpha=0.55;
+    ctx.fillStyle='#ff6666'; ctx.shadowColor='#ff6666'; ctx.shadowBlur=12;
+    ctx.fillRect(x-10*s,y-3*s,20*s,9*s); ctx.fillRect(x-2*s,y-11*s,4*s,9*s);
+    ctx.fillRect(x-13*s,y+3*s,5*s,5*s);  ctx.fillRect(x+8*s,y+3*s,5*s,5*s);
+    ctx.restore();
+  }
+
+  // Player & bullet
+  if (STATE !== 'paused') {
+    drawPlayer();
+    if (pBullet) {
+      ctx.fillStyle='#e8e8e8'; ctx.shadowColor='#e8e8e8'; ctx.shadowBlur=8;
+      ctx.fillRect(pBullet.x-pBullet.w/2, pBullet.y, pBullet.w, pBullet.h);
+      ctx.shadowBlur=0;
+    }
+  }
+
+  // Enemies
+  enemies.forEach(e => { if (e.alive) drawEnemy(e); });
+
+  // Enemy bullets
+  eBullets.forEach(b => {
+    const col = b.aimed ? '#ff8844' : '#ff4455';
+    ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=5;
+    ctx.fillRect(b.x-b.w/2, b.y, b.w, b.h); ctx.shadowBlur=0;
+  });
+
+  // Particles
+  particles.forEach(p => {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle=p.color; ctx.shadowColor=p.color; ctx.shadowBlur=4;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+  });
+  ctx.globalAlpha = 1;
+}
+
+// ─────────────────────────────────────────────
+//  MAIN LOOP
+// ─────────────────────────────────────────────
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+showStart();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
